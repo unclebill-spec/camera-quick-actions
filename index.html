@@ -29,8 +29,11 @@
 <section id="settings" hidden>
   <h1>Settings</h1>
   <label>Webhook URL<input id="hookUrl" type="url" placeholder="https://..." autocomplete="off"></label>
-  <label>Key (optional, sent as X-Webhook-Key header)<input id="hookKey" type="password" autocomplete="off"></label>
+  <label>Authorization header<input id="hookAuth" type="password" placeholder="Bearer xyz" autocomplete="off"></label>
+  <p class="hint">Paste the full header value, e.g. <code>Bearer xyz</code>. Sent as the HTTP <code>Authorization</code> header.</p>
   <p class="hint">Saved only on this device. You can also open the app with <code>?hook=https://...</code></p>
+  <button id="test" class="bigbtn alt">Test send</button>
+  <p id="testResult" class="hint" role="status"></p>
   <div class="row"><button id="save" class="bigbtn">Save</button><button id="close" class="bigbtn alt">Cancel</button></div>
 </section>
 <script src="app.js"></script>

@@ -37,15 +37,20 @@ function loadFile(file) {
   });
 }
 
+function cleanAuth(v) { return (v || '').trim().replace(/^authorization\s*:\s*/i, ''); }
+function postPayload(url, auth, payload) {
+  const headers = { 'Content-Type': 'application/json' };
+  auth = cleanAuth(auth); if (auth) headers['Authorization'] = auth;
+  return fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+}
+
 async function send(action, dataUrl) {
   const url = localStorage.getItem('hookUrl');
   if (!url) { setStatus('failed', 'No webhook URL set. Tap ⚙️'); openSettings(); return; }
   setStatus('sending', `Sending “${action.label}”…`); setButtons(true);
   const payload = { question: action.question, action: action.id, image_base64: dataUrl.split(',')[1], mime: 'image/jpeg', timestamp: new Date().toISOString() };
-  const headers = { 'Content-Type': 'application/json' };
-  const key = localStorage.getItem('hookKey'); if (key) headers['X-Webhook-Key'] = key;
   try {
-    const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
+    const r = await postPayload(url, localStorage.getItem('hookAuth'), payload);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     setStatus('sent', '✓ Sent!');
   } catch (e) { setStatus('failed', '✗ Failed: ' + e.message + ' — tap to retry'); statusEl.onclick = () => { statusEl.onclick = null; send(action, dataUrl); }; }
@@ -72,14 +77,29 @@ $('filebtn').onclick = () => { pendingAction = null; $('file').click(); };
 function setButtons(dis) { document.querySelectorAll('#actions button').forEach(b => b.disabled = dis); }
 ACTIONS.forEach(a => { const b = document.createElement('button'); b.className = 'bigbtn'; b.textContent = a.label; b.onclick = () => onAction(a); $('actions').appendChild(b); });
 
-function openSettings() { $('hookUrl').value = localStorage.getItem('hookUrl') || ''; $('hookKey').value = localStorage.getItem('hookKey') || ''; $('settings').hidden = false; }
+function openSettings() { $('hookUrl').value = localStorage.getItem('hookUrl') || ''; $('hookAuth').value = localStorage.getItem('hookAuth') || ''; $('testResult').textContent = ''; $('settings').hidden = false; }
 $('gear').onclick = openSettings;
 $('close').onclick = () => $('settings').hidden = true;
 $('save').onclick = () => {
-  const u = $('hookUrl').value.trim(), k = $('hookKey').value.trim();
+  const u = $('hookUrl').value.trim(), k = cleanAuth($('hookAuth').value);
   u ? localStorage.setItem('hookUrl', u) : localStorage.removeItem('hookUrl');
-  k ? localStorage.setItem('hookKey', k) : localStorage.removeItem('hookKey');
+  k ? localStorage.setItem('hookAuth', k) : localStorage.removeItem('hookAuth');
+  localStorage.removeItem('hookKey');
   $('settings').hidden = true; setStatus('sent', 'Settings saved');
+};
+
+$('test').onclick = async () => {
+  const out = $('testResult'), url = $('hookUrl').value.trim();
+  if (!url) { out.textContent = '✗ Enter a Webhook URL first.'; return; }
+  out.textContent = 'Sending test…';
+  const c = document.createElement('canvas'); c.width = c.height = 8;
+  const payload = { question: 'Test from camera app', action: 'test', image_base64: c.toDataURL('image/jpeg', 0.5).split(',')[1], mime: 'image/jpeg', timestamp: new Date().toISOString() };
+  try {
+    const r = await postPayload(url, $('hookAuth').value, payload);
+    out.textContent = (r.ok ? '✓ ' : '✗ ') + 'HTTP ' + r.status + ' ' + r.statusText;
+  } catch (e) {
+    out.textContent = '✗ Network/CORS error (' + e.message + '). The endpoint may be unreachable or blocking browser requests: it must allow CORS from ' + location.origin + ' including the Content-Type and Authorization headers (OPTIONS preflight).';
+  }
 };
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
