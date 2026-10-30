@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Set up phone — Camera Quick Actions</title>
+<style>
+body{max-width:640px;margin:0 auto;padding:24px;font:18px/1.4 system-ui,sans-serif;background:#fff;color:#111}
+label{display:block;margin:16px 0;font-weight:700}input{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:10px;font-size:17px}
+button{padding:12px 18px;font-size:18px;font-weight:700;margin:6px 6px 6px 0;cursor:pointer}
+.warn{background:#fff3cd;border:2px solid #e0a800;padding:12px;border-radius:8px}
+#qr{margin:16px 0}#qr svg{width:300px;height:300px;image-rendering:pixelated}
+#msg{font-weight:700}.hint{color:#555;font-size:15px}
+</style>
+</head><body>
+<h1>Set up phone</h1>
+<p>Paste the webhook URL and key from the <b>Camera quick actions</b> panel in Chief of Staff's chat, then scan the QR code with your phone's camera.</p>
+<p class="warn">⚠️ <b>The QR code and link contain your key.</b> Don't share them, post them, or leave them on screen. Anyone with them can send to your webhook. Nothing on this page is sent anywhere; the QR is made right here in your browser.</p>
+<form id="f" autocomplete="off">
+  <label>Webhook URL<input id="u" type="url" placeholder="https://..." required></label>
+  <label>Authorization header / key<input id="k" type="password" placeholder="Bearer ..."></label>
+  <button type="submit">Make QR code</button>
+</form>
+<div id="out" hidden>
+  <div id="qr" aria-label="Setup QR code"></div>
+  <button id="copy" type="button">Copy link</button>
+  <button id="clear" type="button">Clear</button>
+  <p id="msg" role="status"></p>
+  <p class="hint">On the phone: scan, open the link, and tap <b>Test send</b>. If you text or email the link to yourself, delete that message afterwards.</p>
+</div>
+<script src="vendor/qrcode.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const appUrl = new URL('./', location.href).href; // the app sits next to this page
+function clean(v) { return (v || '').trim().replace(/^authorization\s*:\s*/i, ''); }
+function buildLink(u, k) {
+  const h = new URLSearchParams(); h.set('hook', u.trim()); if (clean(k)) h.set('auth', clean(k));
+  return appUrl + '#' + h.toString();
+}
+let link = '';
+$('f').onsubmit = e => {
+  e.preventDefault();
+  const u = $('u').value.trim();
+  if (!/^https?:\/\//i.test(u)) { $('msg').textContent = 'Webhook URL must start with https://'; $('out').hidden = false; return; }
+  link = buildLink(u, $('k').value);
+  const qr = qrcode(0, 'M'); qr.addData(link, 'Byte'); qr.make();
+  $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 4, scalable: true });
+  $('msg').textContent = 'Scan this with your phone camera.'; $('out').hidden = false;
+};
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(link); $('msg').textContent = 'Link copied. Remember: it contains your key.'; }
+  catch { prompt('Copy this link (contains your key):', link); }
+};
+$('clear').onclick = () => { $('f').reset(); link = ''; $('qr').textContent = ''; $('out').hidden = true; };
+</script>
+</body></html>
